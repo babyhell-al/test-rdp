@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Enable Remote Desktop
+      run: |
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+        Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "P@ssw0rd!" -Force)
+
+    - name: Install OpenSSH
+      run: |
+        Invoke-WebRequest -Uri https://winssh.s3.amazonaws.com/OpenSSH-Win64.zip -OutFile OpenSSH.zip
+        Expand-Archive -Path OpenSSH.zip -DestinationPath . -Force
+        .\OpenSSH-Win64\ssh.exe -V
+
+    - name: Create Serveo Tunnel
+      run: .\OpenSSH-Win64\ssh.exe -R 3389:localhost:3389 serveo.net
+      continue-on-error: true
